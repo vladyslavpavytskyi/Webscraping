@@ -1,0 +1,323 @@
+---
+title: "WebScraping"
+author: "Vladyslav Pavytskyi"
+date: "2023-11-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(rvest)
+library(tidyverse)
+library(purrr)
+library(dplyr)
+```
+
+
+```{r}
+url <- "https://www.imdb.com/list/ls027433291/"
+page <- read_html(url)
+
+
+film_name <- page %>% 
+  html_nodes(".lister-item-header a") %>% 
+  html_text()
+
+year <- page %>% 
+  html_nodes(".lister-item-year.text-muted.unbold") %>% 
+  html_text() %>% 
+  parse_number()
+
+duration <- page %>% 
+  html_nodes(".runtime") %>% 
+html_text()
+```
+
+
+```{r}
+missing_values_function <- function(x,selector){
+  specific_node <- html_node(x,selector)
+  if(is.null(specific_node)){
+    return(NA_character_)
+  }else{
+    return(html_text(specific_node,trim = TRUE))
+  }
+}
+```
+
+
+```{r}
+film_summary <- page %>% html_nodes(".lister-item.mode-detail")
+
+
+duration <- map_chr(film_summary,function(x) missing_values_function(x,".runtime"))
+duration <- parse_number(duration)
+
+Dataframe <- data.frame(film_name,year,duration)
+names(Dataframe) <- c("Name","Year","Duration")
+
+write.csv(Dataframe, file = "DataFrame.csv", row.names = FALSE)
+```
+
+
+# TABELA
+
+```{r}
+url_table <- "https://pl.wikipedia.org/wiki/Mistrzostwa_świata_w_piłce_nożnej_mężczyzn"
+page_table <- read_html(url_table)
+
+
+table_team <- page_table %>% 
+  html_nodes("table.wikitable.sortable") %>% 
+  html_table() %>% 
+  .[[2]]
+
+Dataframe_table <- data.frame(table_team)
+```
+
+
+# OTOMOTO CARS
+
+```{r}
+car_volkswagen <- "https://www.otomoto.pl/osobowe/volkswagen"
+car_page <- read_html(car_volkswagen)
+
+car_title <- car_page %>% html_nodes("article.ooa-1t80gpj.ev7e6t818")
+
+car_name <- map_chr(car_title,function(x) missing_values_function(x,"h1.ev7e6t89.ooa-1xvnx1e.er34gjf0"))
+
+Mileage <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'mileage']"))
+Mileage <- parse_number(Mileage)
+
+Fuel_type <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'fuel_type']"))
+
+Gearbox <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'gearbox']"))
+
+Year <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'year']"))
+Year <- parse_number(Year)
+
+Place <- map_chr(car_title,function(x) missing_values_function(x,"p.ooa-gmxnzj"))
+
+Price <- map_chr(car_title,function(x) missing_values_function(x,"h3.ev7e6t82.ooa-bz4efo.er34gjf0"))
+
+Dataframe_cars <- data.frame(car_name,Mileage,Fuel_type,Gearbox,Year,Place,Price)
+names(Dataframe_cars) <- c("Name","Mileage","Fuel_type","Gearbox","Year","Place","Price")
+
+
+library(stringr)
+
+Dataframe_cars$Price <- as.numeric(gsub(" ","",Dataframe_cars$Price))
+Dataframe_cars$Place <- str_extract_all(Dataframe_cars$Place, "(?<=\\().*?(?=\\))")
+Dataframe_cars <- na.omit(Dataframe_cars)
+
+row.names(Dataframe_cars) <- NULL
+View(Dataframe_cars)
+
+```
+
+
+
+```{r}
+Dataframe_Volkswagen <- data.frame()
+
+base_link = "https://www.otomoto.pl/osobowe/volkswagen?page="
+
+for(link in paste0(base_link,2:10)){
+  subpage <- read_html(link)
+  
+  car_title <- subpage %>% html_nodes("article.ooa-1t80gpj.ev7e6t818")
+  
+  car_name <- map_chr(car_title,function(x) missing_values_function(x,"h1.ev7e6t89.ooa-1xvnx1e.er34gjf0"))
+
+  Mileage <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'mileage']"))
+Mileage <- parse_number(Mileage)
+
+  Fuel_type <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'fuel_type']"))
+
+Gearbox <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'gearbox']"))
+
+Year <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'year']"))
+Year <- parse_number(Year)
+
+Place <- map_chr(car_title,function(x) missing_values_function(x,"p.ooa-gmxnzj"))
+
+Price <- map_chr(car_title,function(x) missing_values_function(x,"h3.ev7e6t82.ooa-bz4efo.er34gjf0"))
+
+Dataframe<- data.frame(car_name,Mileage,Fuel_type,Gearbox,Year,Place,Price)
+Dataframe_Volkswagen <- bind_rows(Dataframe_Volkswagen,Dataframe)
+
+}
+Dataframe_Volkswagen$Price <- as.numeric(gsub(" ","",Dataframe_Volkswagen$Price))
+Dataframe_Volkswagen$Place <- str_extract_all(Dataframe_Volkswagen$Place, "(?<=\\().*?(?=\\))")
+Dataframe_Volkswagen <- na.omit(Dataframe_Volkswagen)
+
+row.names(Dataframe_Volkswagen) <- NULL
+View(Dataframe_Volkswagen)
+
+```
+
+```{r}
+#write.csv(Dataframe_Volkswagen, file = "DataFrame_volksvagen.csv", row.names = FALSE)
+```
+
+
+
+```{r}
+library(Rcrawler)
+```
+
+
+
+```{r}
+link <- "https://www.imdb.com/title/tt4589218/?ref_=chtmvm_t_1"
+
+test <- Rcrawler(link,dataUrlfilter = "name", MaxDepth = 1)
+
+web_crawling_specific_urls <- INDEX$Url
+
+for(specific_website in web_crawling_specific_urls){
+  print(specific_website)
+}
+```
+
+
+
+```{r}
+library(rvest)
+library(tidyverse)
+car_volkswagen <- "https://www.otomoto.pl/osobowe/volkswagen"
+
+car_page<- read_html(car_volkswagen)
+
+cars_specific_information <- car_page %>% html_nodes("h1.ev7e6t89.ooa-1xvnx1e.er34gjf0 a") %>% 
+html_attr("href")
+
+cars_specific_information_list <- as.list(cars_specific_information)
+
+for(i in cars_specific_information_list){
+  print(i)
+}
+```
+
+
+
+
+```{r}
+base_link <- "https://www.otomoto.pl/osobowe/volkswagen"
+
+Car_links_detail_information <- c()
+
+for(link in paste0(base_link,2:5)){
+  subpage <- read_html(link)
+  
+  cars_specific_information <- subpage %>% html_nodes("h1.ev7e6t89.ooa-1xvnx1e.er34gjf0 a") %>% 
+  html_attr("href")
+  
+  cars_specific_information_list <- as.list(cars_specific_information)
+  
+  Car_links_detail_information <- append(Car_links_detail_information, cars_specific_information_list)
+}
+```
+
+car_volkswagen <- "https://www.otomoto.pl/osobowe/volkswagen"
+car_page <- read_html(car_volkswagen)
+
+car_title <- car_page %>% html_nodes("article.ooa-1t80gpj.ev7e6t818")
+
+car_name <- map_chr(car_title,function(x) missing_values_function(x,"h1.ev7e6t89.ooa-1xvnx1e.er34gjf0"))
+
+Mileage <- map_chr(car_title,function(x) missing_values_function(x,"dd[data-parameter = 'mileage']"))
+Mileage <- parse_number(Mileage)
+
+```{r}
+missing_values_function <- function(x,selector){
+  specific_node <- html_node(x,selector)
+  if(is.null(specific_node)){
+    return(NA_character_)
+  }else{
+    return(html_text(specific_node,trim = TRUE))
+  }
+}
+```
+
+
+```{r}
+filmweb_link <- "https://www.filmweb.pl/ranking/netflix"
+film_page<- read_html(filmweb_link)
+
+film_title1 <- film_page %>% html_nodes("div.rankingType.hasVod.rankingType--odd")
+film_title2 <- film_page %>% html_nodes("div.rankingType.hasVod.rankingType--even")
+
+film_title <- c(film_title1,film_title2)
+
+position <- map_chr(film_title,function(x) missing_values_function(x,"span.rankingType__position"))
+position <- parse_number(position)
+
+nazwa_filmu <- map_chr(film_title,function(x) missing_values_function(x,"h2.rankingType__title"))
+
+ranking <- map_chr(film_title,function(x) missing_values_function(x,"span.rankingType__rate--value"))
+ranking<- as.numeric(sub(",",".",ranking))
+
+gatunek <- map_chr(film_title,function(x) missing_values_function(x,"div.rankingType__genres"))
+gatunek <- sub("gatunek", "", gatunek)
+gatunek <- sub("/.*","",gatunek)
+
+votes <- map_chr(film_title,function(x) missing_values_function(x,"span.rankingType__rate--count"))
+votes <- sub(" ocen","",votes)
+votes <- sub("y","",votes)
+votes <- sub(" ","",votes)
+votes <- parse_number(votes)
+
+year <- map_chr(film_title,function(x) missing_values_function(x,"span.rankingType__year"))
+year <- parse_number(year)
+
+DataFrame_films <- data.frame(position,nazwa_filmu,ranking,gatunek,votes,year)
+names(DataFrame_films) <- c("Position","Nazwa","Rank","Gatunek","Głosy","Year")
+View(DataFrame_films)
+
+
+
+```
+
+
+```{r}
+ggplot(DataFrame_films, aes(x = gatunek, y = count(gatunek), fill = gatunek)) +
+  geom_bar(stat = "identity") +
+  theme_minimal() +
+  labs(title = "Najczęstsze gatunki", x = "Gatunek", y = "Liczba wystąpień") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+vector_1 <- c(1,2,3)
+vector_2 <- c(4,5)
+
+#Data <- data.frame(vector_1,vector_2)
+
+tryCatch(
+  {Dataframe <- data.frame(vector_1,vector_2)},
+  error = function(e)
+  {print(paste("Error:",e$message))}
+)
+print("Hey.")
+```
+
+
+
+
+
